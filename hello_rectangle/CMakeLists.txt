@@ -13,7 +13,9 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 
 # Add the executable
-add_executable(openGL_project src/main.cpp src/glad.c)
+add_executable(openGL_project src/main.cpp src/glad.c
+        include/utilities/utilities.hpp
+        src/utilities.cpp)
 
 # Include directories for headers
 target_include_directories(openGL_project PRIVATE include)

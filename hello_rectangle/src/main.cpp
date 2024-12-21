@@ -5,55 +5,20 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <fstream>
-#include <sstream>
-#include <streambuf>
 #include <string>
+
+#include "utilities/utilities.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb/stb_image.h>
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow* window);
-std::string loadShaderSrc(const char* filename);
+
 
 
 int main(){
 
     int success;
     char info[512];
-
-    // Glm testing
-    glm::vec4 vec(1.0f, 0.0f, 0.0f, 1.0f);
-    // This is an identity matrix basically
-    glm::mat4 trans = glm::mat4(1.0f);
-    // Here we are basically creating a translation matrix upon our Identity matrix
-    trans = glm::translate(trans, glm::vec3(1.0f, 1.0f, 0.0f));
-
-    // Order matters, we are doing matrix x vector multiplication
-    vec = trans * vec;
-
-    std::cout << "Translation \n" << std::endl;
-
-
-    std::cout << vec.x << std::endl;
-    std::cout << vec.y << std::endl;
-    std::cout << vec.z << std::endl;
-
-    // Now we do a rotation
-    glm::mat4 rot = glm::mat4(1.0f);
-    // We are creating the translation matrix, and we are applying the rotation to the X component
-    trans = glm::rotate(rot, glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    // Then we add a scaling
-    trans = glm::scale(trans, glm::vec3(0.5f, 0.5f, 0.5f));
-
-    vec = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
-
-    vec = trans * vec;
-    std::cout << "\nRotation + scaling \n" << std::endl;
-
-    std::cout << vec.x << std::endl;
-    std::cout << vec.y << std::endl;
-    std::cout << vec.z << std::endl;
 
     glfwInit();
     // OpenGL version 3.3
@@ -164,7 +129,7 @@ int main(){
         0.5f,  0.5f, 0.0f //top right
     }; // Kinda inefficient... so many vertices are shared...
 
-    // There is another kind of buffer (element buffer object), which stores the indeces of the triangles
+    // There is another kind of buffer (element buffer object), which stores the indexes of the triangles
 
     float vertices_2[] = {
         0.5f,  0.5f, 0.0f, //top right
@@ -236,32 +201,4 @@ int main(){
     return 0;
 }
 
-void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-    // Everytime it's resized, set the viewport
-    glViewport(0, 0, width, height);
-}
-
-void processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
-    }
-}
-
-std::string loadShaderSrc(const char* filename) {
-    std::ifstream file;
-    std::stringstream buffer;
-    std::string ret = "";
-
-    file.open(filename);
-
-    if (file.is_open()) {
-        buffer << file.rdbuf();
-        ret = buffer.str();
-    }
-    else {
-        std::cout << "Failed to open file " << filename << std::endl;
-    }
-    file.close();
-    return ret;
-}
 
