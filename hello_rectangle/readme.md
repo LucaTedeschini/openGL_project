@@ -162,3 +162,126 @@ When calling `glClear(GL_COLOR_BUFFER_BIT)` we are cleaning the screen with the 
 Note that the color format is `rgba` normalized, with values from `0` to `1`
 
 # Hello Triangle
+In OpenGL, everything is in a 3D space. Most of the work is converting object in a 3D space into a 2D plane to be
+displayed onto your screen. The process of transforming 3D coordinates to 2D pixels is called **graphic pipeline**.
+
+## Graphic pipeline
+The graphic pipeline can be divided into two large parts:
+* The first transforms the 3D coordinate into a 2D coordinate
+* The second transforms the 2D coordinate into actual colored pixels
+
+Beside this high level view, the graphics pipeline can be divided into several highly specialized steps that can be executed
+in parallel. These small programs that compose the pipeline are called **shaders**.
+Some of these shaders are configurable by the developer, that can write their own. Shaders are written with the OpenGL Shading Language
+(**GLSL**).
+
+Here's an abstract representation of all the stages of the graphics pipeline. The blue sections are the one we can inject changes
+![img.png](mdimages/img.png)
+*Credit to https://learnopengl.com/Getting-started/Hello-Triangle*
+
+As the input of the pipeline we pass a list of 3D coordinates that should form a triangle.
+> [!IMPORTANT]
+> Remember that GPU can only draw points, lines and triangles!
+
+It is also important to tell OpenGL what to do with the data, so it can interpret them correctly. These are called "hints"
+and some of them are `GL_POINTS`, `GL_TRIANGLES` and `GL_LINE_STRIP`.
+
+### Vertex shader
+It is the first element of the pipeline. It takes in input a single vertex and the main goal of this component is to transform
+the 3D coordinate in **homogeneous 3D coordinate** (this is just my guess, it is not stated in the book).
+
+### Geometry shader
+It takes the output of the **vertex shader** as a collection of vertices that form a primitive and has the ability to generate
+other shapes by emitting new vertices to form new (or other) primitive(s). In the image above, it generates a second triangle
+
+### Primitive assembly
+This stage takes as input all the vertices from the vertex shader that form one or more primitives and assembles all the points
+in the primitive shape give
+
+### Rasterization stage
+The output of the previous stage is mapped into corresponding pixels on the final screen, resulting in **fragments** for the
+**fragment shader** to use. Before running the fragment shader, a clipping is performed. Clipping remove all the fragments that are
+outside your view to increase performances.
+
+### Fragment shader
+The main purpose of this stage is to calculate the final color of a pixel.
+
+### Test and blending
+After all the corresponding color values have been determined, the final object will then pass through one more stage.
+This stage checks the corresponding depth value of the fragment and uses those to check if the resulting fragment is in front or 
+behind other objects. It also checks for alpha values, blending objects with low opacity.
+
+This is basically what happens. There is also the **tessellation stage** and **transform feedback loop**, but they are more advanced
+and will be covered later.
+
+In modern openGL we are required to define at least a vertex and fragment shader of our own, there are not default ones.
+
+## Vertex input
+As learned above, to start drawing objects we need 3D coordinates
+```c++
+float vertices[] = {
+    -0.5f, -0.5f, 0.0f,
+     0.5f, -0.5f, 0.0f,
+     0.0f,  0.5f, 0.0f
+}; 
+```
+
+Remember also that OpenGL uses the Normalized Device Coordinate (NDC)
+
+
+![img.png](mdimages/normalized.png)
+*Credit https://learnopengl.com/Getting-started/Hello-Triangle*
+
+and so numbers from -1 to +1. The next step is to send this data down the pipeline. To do so, we need to create
+memory on the GPU where we will store our vertex data. We manage this memory via a Vertex Buffer Object (VBO)
+
+### Vertex Buffer Object
+The advantage of using a buffer is that we can send large batches of data all at once to the graphic card, without sending
+the data one by one (remember that sending data to the GPU is quite expensive time wise.)
+
+```c++
+unsigned int VBO;
+glGenBuffers(1, &VBO); 
+```
+
+This buffer is represented by a unique ID that get assigned by the `glGenBuffers`. We then map this id to the actual buffer.
+There are many kind of vertex buffer, in this example we will use the `GL_ARRAY_BUFFER`. You can create as many buffers as
+you want, note that all of them must be different
+
+```c++
+glBindBuffer(GL_ARRAY_BUFFER, VBO); 
+```
+
+From now on any buffer call we make will be used to configure the currently bound buffer, which is VBO. We can now make a 
+call to the `glBufferData` function that copies the previously defined vertex data into the buffer's memory
+
+```c++
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+```
+
+This call takes as the first parameter the target buffer, the second parameter the size of the data to be sent, the third
+parameter is the actual data and the third one is an hint on how to manage the data:
+* `GL_STREAM_DRAW`: the data is sent only once and used by the GPU at most few times
+* `GL_STATIC_DRAW`: the data is set only once and used many times
+* `GL_DYNAMIC_DRAW`: the data is changed a lot and used many times
+
+This allows the GPU to store the data in a more clever way, depending on its usage.
+
+## Vertex shader
+As said before, there is no default vertex shader, so we need to write one ourselves. The shader will then be read and compiled run-time.
+This is a very basic shader
+
+```glsl
+#version 330 core
+layout (location = 0) in vec3 aPos;
+
+void main()
+{
+    gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
+}
+```
+
+TODO: continue from here
+
+# Shaders
+TODO
