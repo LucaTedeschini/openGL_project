@@ -281,7 +281,209 @@ void main()
 }
 ```
 
-TODO: continue from here
+`glsl` is quite similar to C (syntax-wise) and it is structured as it follows:
+* The first line specify the openGL version (3.3)
+* Then, we declare all input variables (using the keyword `in`)
+  * There are many datatypes, all based on vectors, since computer graphic is based on that
+* We could also specify output varibales
+* Then there's the main, where we do our computation
+
+In this snippet, we take in input our 3D vector and we put as it is in our 4D space (homogenous coordinate) used by openGL.
+
+Shaders needs to be compiled runtime. You can read them from files or you can hardcode them in the code. 
+### Compiling shaders
+Let's say we have our shader hard coded
+```c++
+const char *vertexShaderSource = "#version 330 core\n"
+    "layout (location = 0) in vec3 aPos;\n"
+    "void main()\n"
+    "{\n"
+    "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    "}\0";
+```
+
+To compile it, we need to create a shader object, referenced by an id
+```c++
+unsigned int vertexShader;
+vertexShader = glCreateShader(GL_VERTEX_SHADER);
+```
+Then we attach the shader to our object and we compile it
+
+```c++
+glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+glCompileShader(vertexShader);
+```
+
+Since the compilation happens runtime, it is a good idea to log the compilation results
+```c++
+int  success;
+char infoLog[512];
+glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+
+if(!success)
+{
+    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
+    std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
+}
+```
+
+## Fragment shader
+This shader is all about calculating the color output of each pixel
+
+```glsl
+#version 330 core
+out vec4 FragColor;
+
+void main()
+{
+    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+}
+```
+
+This shader only requires one outvariable, which is the vec4 describing the color of the pixel that is being rendered.
+The process of compiling the shader is the same as before
+
+```c++
+unsigned int fragmentShader;
+fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+glCompileShader(fragmentShader);
+```
+
+## Shader program
+A shader program is the final linked versio of multiple shaders combined. It is like a pipeline. Creating it is simple
+```c++
+unsigned int shaderProgram;
+shaderProgram = glCreateProgram();
+glAttachShader(shaderProgram, vertexShader);
+glAttachShader(shaderProgram, fragmentShader);
+glLinkProgram(shaderProgram);
+```
+
+Just like before, to log error messages we could add
+
+```c++
+glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+if(!success) {
+    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+    ...
+}
+```
+
+To use our newly created program, we can call the function `glUseProgram(...)`. Once you have your program,
+you don't need your shader anymore, so you can eliminate them
+```c++
+glDeleteShader(vertexShader);
+glDeleteShader(fragmentShader);  
+```
+
+## Linking vertex attributes
+The vertex shader allows us to specify any input we want in the form of vertex attributes. This means that we have to tell
+openGL how it should interpret the vertex data before rendering.
+
+Our vertex buffer data could be represented as it follow
+
+![img.png](mdimages/vertex_buffer.png)
+*credit https://learnopengl.com/Getting-started/Hello-Triangle*
+
+The position data is stored as a 32-bit floating point values. Each position is composed by three values (coordinates).
+The first value in the data is at the beginning of our array, and there's no space in between coordinates.
+With this knowledge, we can tell OpenGL how it should view our data
+```c++
+glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+glEnableVertexAttribArray(0); 
+```
+
+Let's see what each attribute does:
+* The first `0` specify which vertex attribute we want to configure. In our shader we specified `layout (location = 0)`, so we are referring to that `0`
+* This is the size of the vertex attribute. Since it is a `vec3`, we pass `3`
+* This argument specify the type of the data, in this case `GL_FLOAT`
+* This argument tells openGL if our data needs to be normalized. Since they are already normalized, we put `GL_FALSE`
+* Next is the `stride`: it tells us the space between consecutive vertex attributes. Since we have three cordinates, each one represented by a float, we put `3 * sizeof(float)`.
+* This is the offset of where the position of data begins. It begins at `0`, so we put 0. OpenGL wants a type of `void*` hence the casting
+
+## Drawing on screen
+Now that everything is set up, we can finally draw something
+```c++
+// 0. copy our vertices array in a buffer for OpenGL to use
+glBindBuffer(GL_ARRAY_BUFFER, VBO);
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+// 1. then set the vertex attributes pointers
+glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+glEnableVertexAttribArray(0);  
+// 2. use our shader program when we want to render an object
+glUseProgram(shaderProgram);
+// 3. now draw the object 
+someOpenGLFunctionThatDrawsOurTriangle();  
+```
+
+And this needs to be done for each object. Kinda boring. What if there was a way to optimize this process?
+
+## Vertex Array Object
+Also known as VAO, it helps us by storing each call we make so we can reuse the same vertex buffer again.
+It stores the following:
+![img.png](mdimages/VAO.png)
+*credit https://learnopengl.com/Getting-started/Hello-Triangle*
+So a VAO keeps memorized the configurations of various VBO, for further use.
+
+The process to create a VAO is straight forward
+```c++
+unsigned int VAO;
+glGenVertexArrays(1, &VAO);  
+
+
+// ..:: Initialization code (done once (unless your object frequently changes)) :: ..
+// 1. bind Vertex Array Object
+glBindVertexArray(VAO);
+// 2. copy our vertices array in a buffer for OpenGL to use
+glBindBuffer(GL_ARRAY_BUFFER, VBO);
+glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+// 3. then set our vertex attributes pointers
+glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+glEnableVertexAttribArray(0);  
+
+  
+[...]
+
+// ..:: Drawing code (in render loop) :: ..
+// 4. draw the object
+glUseProgram(shaderProgram);
+glBindVertexArray(VAO);
+someOpenGLFunctionThatDrawsOurTriangle();  
+```
+Typically, when you have multiple objects you want to draw, you first generate all the VAOs (and thus the required VBO)
+and store them. The moment you want to draw, you take the correspoding VAO, bind it and then draw. Finally you unbind the VAO again.
+
+## Element Buffer Object
+Since openGL works with triangle, to draw a rectangle you would need two of them. Two coordinates would be repeated.
+Imagine this repetiotion of coordinates for many other objects, a waste of memory. Enters EBO.
+The solution is to store the indivindual verteces, and the by using indexes you retrive them
+
+```c++
+float vertices[] = {
+     0.5f,  0.5f, 0.0f,  // top right
+     0.5f, -0.5f, 0.0f,  // bottom right
+    -0.5f, -0.5f, 0.0f,  // bottom left
+    -0.5f,  0.5f, 0.0f   // top left 
+};
+unsigned int indices[] = {  // note that we start from 0!
+    0, 1, 3,   // first triangle
+    1, 2, 3    // second triangle
+}; 
+```
+
+This is what an EBO does
+
+```c++
+unsigned int EBO;
+glGenBuffers(1, &EBO);
+
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW); 
+
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+```
 
 # Shaders
 TODO
