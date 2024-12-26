@@ -16,20 +16,4 @@ void processInput(GLFWwindow* window) {
     }
 }
 
-std::string loadShaderSrc(const char* filename) {
-    std::ifstream file;
-    std::stringstream buffer;
-    std::string ret = "";
 
-    file.open(filename);
-
-    if (file.is_open()) {
-        buffer << file.rdbuf();
-        ret = buffer.str();
-    }
-    else {
-        std::cout << "Failed to open file " << filename << std::endl;
-    }
-    file.close();
-    return ret;
-}
